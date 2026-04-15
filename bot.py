@@ -1,5 +1,4 @@
 import os
-import asyncio
 from telegram import Update
 from telegram.ext import Application, CommandHandler, ContextTypes
 from anthropic import Anthropic
@@ -39,14 +38,20 @@ async def quickdive(update: Update, context: ContextTypes.DEFAULT_TYPE):
             messages=[{"role": "user", "content": thought}]
         )
         
-        response_text = ""
+        response_parts = []
         for block in message.content:
-            if hasattr(block, "text"):
-                response_text += block.text
+            if hasattr(block, "text") and block.text:
+                response_parts.append(block.text)
         
-        await update.message.reply_text(response_text or "No response generated.")
+        response_text = "\n".join(response_parts) if response_parts else "No text response generated. Check API logs."
+        
+        # Telegram has a 4096 char limit per message
+        if len(response_text) > 4000:
+            response_text = response_text[:4000] + "..."
+        
+        await update.message.reply_text(response_text)
     except Exception as e:
-        await update.message.reply_text(f"Error: {str(e)}")
+        await update.message.reply_text(f"Error: {type(e).__name__}: {str(e)}")
 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
